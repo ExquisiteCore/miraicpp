@@ -7,8 +7,8 @@
 使用以下指令克隆本仓库
 
 ```bash
-git clone https://github.com/cyanray/mirai-cpp-template.git --recursive
-cd mirai-cpp-template
+git clone https://github.com/xiaolongqq1y/miraicpp.git --recursive
+cd miraicpp
 # 更新 mirai-cpp 到最新
 git submodule update --init --force --remote
 ```
