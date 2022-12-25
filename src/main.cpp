@@ -6,26 +6,40 @@
 
 #include <iostream>
 #include <map>
+#include <string>
+#include <sstream>
+#include <thread>
+#include <regex>
+#include <ctime>
+#include "Group.h"
 #include <mirai.h>
+#include <fmt/core.h>
+#include <fmt/color.h>
+#include <fmt/chrono.h>
+#include <nlohmann/json.hpp>
+
+#include <cpr/cpr.h>
+#include <httplib.h>
 #include "myheader.h"
+
+
+
+
 using namespace std;
 using namespace Cyan;
+using json = nlohmann::json;
 
 int main()
 {
 #if defined(WIN32) || defined(_WIN32)
 	// 切换代码页，让 CMD 可以显示 UTF-8 字符
-	system("chcp 65001");
+	system("chcp 65001");    
 #endif
 
+
+
 	MiraiBot bot;
-	SessionOptions opts;
-	opts.BotQQ = 123456789_qq;				// 请修改为你的机器人QQ
-	opts.HttpHostname = "localhost";		// 请修改为和 mirai-api-http 配置文件一致
-	opts.WebSocketHostname = "localhost";	// 同上
-	opts.HttpPort = 8080;					// 同上
-	opts.WebSocketPort = 8080;				// 同上
-	opts.VerifyKey = "VerifyKey";			// 同上
+	SessionOptions opts = SessionOptions::FromJsonFile("./config.json");	
 
 	while (true)
 	{
@@ -43,48 +57,58 @@ int main()
 	}
 	cout << "Bot Working..." << endl;
 
-	// 用map记录哪些群启用了“反撤回”功能
-	map<GID_t, bool> groups;
 
-	bot.On<GroupMessage>(
-		[&](GroupMessage m)
+	//Message GroupMessage
+	bot.On<Message>([&](Message gm)
 		{
-			try
+
+			string plain = gm.MessageChain.GetPlainText();
+			string msg = plain;
+			if (msg.find("照片") != string::npos)
 			{
-				string plain = m.MessageChain.GetPlainText();
-				if (plain == "/anti-recall enabled." || plain == "撤回没用")
+				GroupImage img = bot.UploadGroupImage("C:/Users/xiaol/Desktop/vue/1.png", false);
+				gm.Reply(MessageChain().Image(img));
+			}
+			if (msg.find("查询玩家") != string::npos)
+			{
+				string xboxid = msg.substr(strlen("查询玩家"));
+				if (xboxid.empty())
 				{
-					groups[m.Sender.Group.GID] = true;
-					m.Reply(MessageChain().Plain("撤回也没用，我都看到了"));
+					gm.Reply(MessageChain().Plain("使用方式：查询玩家[xboxid]"));
 					return;
 				}
-				if (plain == "/anti-recall disabled." || plain == "撤回有用")
+				else
 				{
-					groups[m.Sender.Group.GID] = false;
-					m.Reply(MessageChain().Plain("撤回有用"));
+					cpr::Response r = cpr::Get(cpr::Url{ "https://api.blackbe.work/openapi/v3/utils/xuid" },
+						cpr::Parameters{ {"gamertag", xboxid} });
+					json id = r.text;
+					id = json::parse(r.text);
+					auto gat1 = id["message"].get<std::string>();
+					auto gat2 = id["data"].at("xuid").get<std::string>();
+
+					string tx = gat1+"该玩家Xuid："+gat2;
+					gm.Reply(MessageChain().Plain(tx));
 					return;
 				}
 			}
-			catch (const std::exception& ex)
+			if (msg.find("查询服务器") != string::npos)
 			{
-				cout << ex.what() << endl;
-			}
-		});
-
-
-	bot.On<GroupRecallEvent>(
-		[&](GroupRecallEvent e)
-		{
-			try
-			{
-				if (!groups[e.Group.GID]) return;
-				auto recalled_mc = bot.GetGroupMessageFromId(e.MessageId).MessageChain;
-				auto mc = "刚刚有人撤回了: " + recalled_mc;
-				bot.SendMessage(e.Group.GID, mc);
-			}
-			catch (const std::exception& ex)
-			{
-				cout << ex.what() << endl;
+				string host = msg.substr(strlen("查询服务器"));
+				if (host.empty())
+				{
+					gm.Reply(MessageChain().Plain("使用方式：查询服务器[ip]"));
+					return;
+				}
+				else
+				{
+					cpr::Response r = cpr::Get(cpr::Url{ "https://motdbe.blackbe.work/status_img" },
+					cpr::Parameters{ {"host", host} });
+					//string str = r.url;
+					string Img = "https://motdbe.blackbe.work/status_img?host="+host;
+					GroupImage motd = bot.UploadGroupImage(Img, true);
+					gm.Reply(MessageChain().Image(motd));
+					return;
+				}
 			}
 		});
 

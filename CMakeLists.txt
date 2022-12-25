@@ -1,6 +1,7 @@
 # CMake 版本要求 (最低 3.1)
 cmake_minimum_required (VERSION 3.1)
 # 项目名称（建议修改）
+SET(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake")
 project(my-qqrobot)
 # 设置项目的 C++ 标准
 set(CMAKE_CXX_STANDARD 17)
@@ -19,7 +20,7 @@ endif(MSVC)
 
 # 要添加.cpp源文件，请修改这一行
 # 例如：add_executable(${PROJECT_NAME} src/main.cpp src/a.cpp src/b.cpp)
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp "src/Group.cpp")
 # 设置头文件目录
 include_directories(include)
 # 链接 mirai-cpp
@@ -33,3 +34,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # 静态链接 libgcc 和 libstdc++
     target_link_libraries(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
 endif()
+find_package(cpr REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
+find_package(nlohmann_json CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt-header-only)
